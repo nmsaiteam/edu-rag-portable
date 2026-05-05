@@ -536,7 +536,7 @@
         <div class="header">
             <h1>🎓 EDU RAG</h1>
             <p>Intelligent Educational Assistant for Moldovan Schools</p>
-            <span class="badge">Intel AI Global Impact Festival 2025</span>
+            <span class="badge">Intel AI Global Impact Festival 2026</span>
         </div>
 
         <!-- Main Card -->
@@ -544,7 +544,7 @@
             <!-- Mode Toggle -->
             <div class="mode-toggle">
                 <button class="mode-btn active" data-mode="local" onclick="setMode('local')">
-                    <span class="icon">💻</span> OFFLINE (Llama)
+                    <span class="icon">💻</span> OFFLINE (DeepSeek-R1)
                 </button>
                 <button class="mode-btn" data-mode="gpt" onclick="setMode('gpt')">
                     <span class="icon">☁️</span> ONLINE (GPT-5-nano)
@@ -854,7 +854,7 @@
             const loadingText = document.getElementById('loadingText');
             loadingText.textContent = currentMode === 'gpt' 
                 ? 'Connecting to GPT-5-nano...' 
-                : 'Processing with local Llama model...';
+                : 'Processing with local DeepSeek-R1 model...';
 
             try {
                 const startTime = Date.now();

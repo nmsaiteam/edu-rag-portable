@@ -2,10 +2,15 @@
 
 > Hybrid (online + **offline**) RAG system for school textbooks, designed to run on an ordinary Intel Core i5 laptop with **8 GB RAM and no GPU**.
 
+> Built for and presented at the **AI Global Impact Festival 2026 forum in Delhi**.
+
 [![CPU-only](https://img.shields.io/badge/inference-CPU--only-blue)]()
 [![Offline-capable](https://img.shields.io/badge/mode-offline%20%2B%20online-green)]()
 [![Docker](https://img.shields.io/badge/deploy-docker--compose-2496ed)]()
 [![Languages](https://img.shields.io/badge/languages-RO%20%2F%20RU%20%2F%20EN-orange)]()
+[![License: MIT](https://img.shields.io/badge/license-MIT-yellow)](./LICENSE)
+
+![EDU RAG demo UI](./docs/screenshot.png)
 
 ---
 

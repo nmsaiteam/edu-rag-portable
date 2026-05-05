@@ -51,3 +51,4 @@ npm-debug.log*
 CLAUDE.md
 claude.md
 .aider*
+.playwright-mcp/
