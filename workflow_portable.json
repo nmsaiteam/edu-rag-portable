@@ -1,0 +1,158 @@
+{
+  "name": "EDU_RAG_Portable",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "edu-rag-query",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "1. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst question = body.question;\nif (!question || question.trim() === '') {\n  throw new Error('Поле \"question\" обязательно');\n}\nreturn [{\n  json: {\n    question: question.trim(),\n    subject: body.subject || null,\n    grade: body.grade || null,\n    top_k: body.top_k || 5,\n    llm: body.llm || 'local'\n  }\n}];"
+      },
+      "id": "validate",
+      "name": "2. Валидация",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ollama:11434/api/embeddings",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: \"nomic-embed-text:latest\", prompt: $json.question }) }}",
+        "options": { "timeout": 60000 }
+      },
+      "id": "embed",
+      "name": "3. Embed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [600, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const queryData = $('2. Валидация').first().json;\nconst embedResponse = $input.first().json;\nlet embedding = embedResponse.embedding;\nif (!embedding) throw new Error('Не удалось получить embedding');\nconst embeddingStr = '[' + embedding.join(',') + ']';\nreturn [{\n  json: {\n    question: queryData.question,\n    subject: queryData.subject,\n    grade: queryData.grade,\n    top_k: queryData.top_k,\n    llm: queryData.llm,\n    query_embedding: embeddingStr\n  }\n}];"
+      },
+      "id": "prepare",
+      "name": "4. Подготовка",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [800, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, subject, grade, book_id, title, content,\n       1 - (embedding <=> $1::vector) as similarity\nFROM rag_chunks\nWHERE ($2::text IS NULL OR subject = $2)\n  AND ($3::int IS NULL OR grade = $3)\nORDER BY embedding <=> $1::vector\nLIMIT $4;",
+        "options": {}
+      },
+      "id": "search",
+      "name": "5. Поиск",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [1000, 300],
+      "credentials": { "postgres": { "id": "postgres", "name": "PostgreSQL RAG" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const question = $('2. Валидация').first().json.question;\nconst llm = $('4. Подготовка').first().json.llm;\nconst results = $input.all();\n\nlet lang = 'ro';\nif (/[а-яА-ЯёЁ]/.test(question)) lang = 'ru';\nelse if (/^(what|who|where|when|why|how|is|are|do|does|can|could)/i.test(question)) lang = 'en';\n\nconst langInstructions = {\n  'ru': 'ВАЖНО: Отвечай ТОЛЬКО на русском языке!',\n  'en': 'IMPORTANT: Answer ONLY in English!',\n  'ro': 'Răspunde în limba română.'\n};\n\nlet context = '';\nlet sources = [];\nresults.forEach((item, i) => {\n  const doc = item.json;\n  context += `[Источник ${i+1}: ${doc.title || doc.book_id}]\\n${doc.content}\\n\\n`;\n  sources.push({ title: doc.title || doc.book_id, subject: doc.subject, similarity: doc.similarity?.toFixed(2) || 'N/A' });\n});\n\nconst systemPrompt = `Ты - образовательный ассистент EDU RAG.\\n${langInstructions[lang]}\\nОтвечай ТОЛЬКО на основе контекста. Цитируй источники.`;\n\nreturn [{\n  json: { question, context, sources, lang, llm, systemPrompt }\n}];"
+      },
+      "id": "context",
+      "name": "6. Контекст",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "gpt", "leftValue": "={{ $json.llm }}", "rightValue": "gpt", "operator": { "type": "string", "operation": "equals" } }],
+          "combinator": "and"
+        }
+      },
+      "id": "switch",
+      "name": "7. Switch LLM",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1400, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: \"gpt-5-nano\", messages: [{ role: \"system\", content: $json.systemPrompt }, { role: \"user\", content: \"Контекст:\\n\" + $json.context + \"\\n\\nВопрос: \" + $json.question }], temperature: 0.3, max_tokens: 1000 }) }}",
+        "options": { "timeout": 60000 }
+      },
+      "id": "gpt",
+      "name": "8a. GPT-5-nano",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1600, 200],
+      "credentials": { "openAiApi": { "id": "openai", "name": "OpenAI API" } }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ollama:11434/api/chat",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: \"deepseek-r1:8b\", messages: [{ role: \"system\", content: $json.systemPrompt }, { role: \"user\", content: \"Контекст:\\n\" + $json.context + \"\\n\\nВопрос: \" + $json.question }], stream: false, options: { temperature: 0.3, num_ctx: 4096 } }) }}",
+        "options": { "timeout": 180000 }
+      },
+      "id": "ollama",
+      "name": "8b. Ollama Local",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1600, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const contextData = $('6. Контекст').first().json;\nconst llmResponse = $input.first().json;\n\nlet answer = '';\nlet thinking = '';\nlet llmUsed = contextData.llm;\n\n// GPT response\nif (llmResponse.choices && llmResponse.choices[0]) {\n  answer = llmResponse.choices[0].message.content;\n  llmUsed = 'gpt-5-nano';\n}\n// Ollama response (DeepSeek-R1 with thinking)\nelse if (llmResponse.message && llmResponse.message.content) {\n  let fullResponse = llmResponse.message.content;\n  llmUsed = 'deepseek-r1:8b';\n  \n  // Extract thinking from <think>...</think> tags\n  const thinkMatch = fullResponse.match(/<think>([\\s\\S]*?)<\\/think>/i);\n  if (thinkMatch) {\n    thinking = thinkMatch[1].trim();\n    answer = fullResponse.replace(/<think>[\\s\\S]*?<\\/think>/gi, '').trim();\n  } else {\n    answer = fullResponse;\n  }\n} else {\n  answer = 'Не удалось сгенерировать ответ.';\n}\n\nconst result = {\n  success: true,\n  question: contextData.question,\n  answer: answer,\n  sources: contextData.sources,\n  llm: llmUsed\n};\n\nif (thinking) {\n  result.thinking = thinking;\n}\n\nreturn [{ json: result }];"
+      },
+      "id": "format",
+      "name": "9. Формат",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1800, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "10. Ответ",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2000, 300]
+    }
+  ],
+  "connections": {
+    "1. Webhook": { "main": [[{ "node": "2. Валидация", "type": "main", "index": 0 }]] },
+    "2. Валидация": { "main": [[{ "node": "3. Embed", "type": "main", "index": 0 }]] },
+    "3. Embed": { "main": [[{ "node": "4. Подготовка", "type": "main", "index": 0 }]] },
+    "4. Подготовка": { "main": [[{ "node": "5. Поиск", "type": "main", "index": 0 }]] },
+    "5. Поиск": { "main": [[{ "node": "6. Контекст", "type": "main", "index": 0 }]] },
+    "6. Контекст": { "main": [[{ "node": "7. Switch LLM", "type": "main", "index": 0 }]] },
+    "7. Switch LLM": { "main": [[{ "node": "8a. GPT-5-nano", "type": "main", "index": 0 }], [{ "node": "8b. Ollama Local", "type": "main", "index": 0 }]] },
+    "8a. GPT-5-nano": { "main": [[{ "node": "9. Формат", "type": "main", "index": 0 }]] },
+    "8b. Ollama Local": { "main": [[{ "node": "9. Формат", "type": "main", "index": 0 }]] },
+    "9. Формат": { "main": [[{ "node": "10. Ответ", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

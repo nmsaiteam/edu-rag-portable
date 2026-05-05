@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EDU RAG Portable — Краткая инструкция</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e17;
+    --surface: #111827;
+    --surface2: #1a2235;
+    --border: #2a3550;
+    --text: #e2e8f0;
+    --text-dim: #8b9cc0;
+    --accent: #3b82f6;
+    --accent-glow: rgba(59,130,246,0.15);
+    --green: #10b981;
+    --green-glow: rgba(16,185,129,0.12);
+    --orange: #f59e0b;
+    --orange-glow: rgba(245,158,11,0.12);
+    --red: #ef4444;
+    --red-glow: rgba(239,68,68,0.12);
+    --purple: #a78bfa;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Outfit', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  .noise {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Header */
+  .header {
+    text-align: center;
+    margin-bottom: 48px;
+    padding: 48px 0 40px;
+    position: relative;
+  }
+
+  .header::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 10%; right: 10%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border), transparent);
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    background: var(--accent-glow);
+    color: var(--accent);
+    border: 1px solid rgba(59,130,246,0.25);
+    margin-bottom: 20px;
+  }
+
+  h1 {
+    font-size: 2.6em;
+    font-weight: 800;
+    letter-spacing: -1px;
+    margin-bottom: 10px;
+    background: linear-gradient(135deg, #fff 0%, #94a3b8 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .subtitle {
+    color: var(--text-dim);
+    font-size: 1.05em;
+    font-weight: 300;
+  }
+
+  /* Sections */
+  .section {
+    margin-bottom: 40px;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+
+  .section-number {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  .section-number.blue { background: var(--accent-glow); color: var(--accent); border: 1px solid rgba(59,130,246,0.3); }
+  .section-number.green { background: var(--green-glow); color: var(--green); border: 1px solid rgba(16,185,129,0.3); }
+  .section-number.red { background: var(--red-glow); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+
+  h2 {
+    font-size: 1.4em;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+
+  /* Steps */
+  .steps {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .step {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    padding: 16px 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    transition: border-color 0.2s;
+  }
+
+  .step:hover { border-color: var(--accent); }
+
+  .step-num {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--accent-glow);
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .step-content { flex: 1; }
+  .step-content p { margin-bottom: 8px; font-weight: 400; }
+
+  /* Code blocks */
+  code, .code-block {
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .code-block {
+    background: #0d1117;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 18px;
+    font-size: 13px;
+    line-height: 1.7;
+    overflow-x: auto;
+    color: #c9d1d9;
+    position: relative;
+  }
+
+  .code-block .comment { color: #6b7b8d; }
+  .code-block .cmd { color: var(--green); }
+
+  .code-inline {
+    background: var(--surface2);
+    padding: 2px 8px;
+    border-radius: 5px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.88em;
+    border: 1px solid var(--border);
+  }
+
+  /* Demo cards */
+  .demo-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  @media (max-width: 640px) {
+    .demo-grid { grid-template-columns: 1fr; }
+    h1 { font-size: 2em; }
+  }
+
+  .demo-card {
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .demo-card.online {
+    background: linear-gradient(135deg, rgba(59,130,246,0.06), var(--surface));
+    border-color: rgba(59,130,246,0.25);
+  }
+
+  .demo-card.offline {
+    background: linear-gradient(135deg, rgba(16,185,129,0.06), var(--surface));
+    border-color: rgba(16,185,129,0.25);
+  }
+
+  .demo-card h3 {
+    font-size: 1em;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+
+  .demo-card.online h3 { color: var(--accent); }
+  .demo-card.offline h3 { color: var(--green); }
+
+  .demo-card .speed {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+  }
+
+  .demo-card .tag {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-top: 8px;
+  }
+
+  .demo-card.online .tag { background: var(--accent-glow); color: var(--accent); }
+  .demo-card.offline .tag { background: var(--green-glow); color: var(--green); }
+
+  /* Table */
+  .params-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    margin: 16px 0;
+  }
+
+  .params-table th {
+    text-align: left;
+    padding: 10px 14px;
+    background: var(--surface2);
+    color: var(--text-dim);
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .params-table th:first-child { border-radius: 8px 0 0 0; }
+  .params-table th:last-child { border-radius: 0 8px 0 0; }
+
+  .params-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(42,53,80,0.5);
+  }
+
+  .params-table tr:last-child td { border-bottom: none; }
+  .params-table tr:hover td { background: rgba(59,130,246,0.04); }
+
+  /* Warning box */
+  .warning-box {
+    background: var(--red-glow);
+    border: 1px solid rgba(239,68,68,0.3);
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-top: 16px;
+  }
+
+  .warning-box h3 {
+    color: var(--red);
+    font-size: 0.95em;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .warning-box ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .warning-box li {
+    padding-left: 20px;
+    position: relative;
+    font-size: 14px;
+    color: #f0a0a0;
+  }
+
+  .warning-box li::before {
+    content: '✕';
+    position: absolute;
+    left: 0;
+    color: var(--red);
+    font-weight: 700;
+    font-size: 12px;
+  }
+
+  /* Tips */
+  .tip-box {
+    background: var(--orange-glow);
+    border: 1px solid rgba(245,158,11,0.3);
+    border-radius: 12px;
+    padding: 18px 22px;
+    margin: 16px 0;
+  }
+
+  .tip-box h3 {
+    color: var(--orange);
+    font-size: 0.9em;
+    margin-bottom: 8px;
+  }
+
+  .tip-box p, .tip-box li {
+    font-size: 14px;
+    color: #d4b88a;
+  }
+
+  .tip-box ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-left: 0;
+  }
+
+  .tip-box li::before {
+    content: '→ ';
+    color: var(--orange);
+    font-weight: 600;
+  }
+
+  /* Architecture */
+  .arch-flow {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 2;
+    text-align: center;
+    color: var(--text-dim);
+    margin: 16px 0;
+  }
+
+  .arch-flow .node { color: var(--accent); font-weight: 600; }
+  .arch-flow .arrow { color: var(--text-dim); }
+  .arch-flow .gpt { color: var(--purple); }
+  .arch-flow .local { color: var(--green); }
+
+  /* Footer */
+  .footer {
+    text-align: center;
+    margin-top: 48px;
+    padding-top: 32px;
+    border-top: 1px solid var(--border);
+    color: var(--text-dim);
+    font-size: 13px;
+  }
+
+  .copy-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    cursor: pointer;
+    font-family: 'Outfit', sans-serif;
+    transition: all 0.2s;
+  }
+
+  .copy-btn:hover { color: var(--text); border-color: var(--accent); }
+  .copy-btn.copied { color: var(--green); border-color: var(--green); }
+</style>
+</head>
+<body>
+<div class="noise"></div>
+<div class="container">
+
+  <div class="header">
+    <div class="badge">Quick Start Guide</div>
+    <h1>EDU RAG Portable</h1>
+    <p class="subtitle">Запуск · Демонстрация · Завершение работы</p>
+  </div>
+
+  <!-- LAUNCH -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-number blue">1</div>
+      <h2>Запуск</h2>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <p>Запустите <strong>Docker Desktop</strong> и дождитесь полной загрузки (1-2 мин)</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <p>Откройте PowerShell и запустите контейнеры:</p>
+          <div class="code-block">
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+<span class="cmd">cd</span> C:\edu-rag-portable
+<span class="cmd">docker-compose</span> -f docker-compose-portable.yml up -d</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <p>Откройте в браузере: <strong><a href="http://localhost:5678" style="color:var(--accent);text-decoration:none;">http://localhost:5678</a></strong></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DEMO -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-number green">2</div>
+      <h2>Демонстрация</h2>
+    </div>
+
+    <div class="demo-grid">
+      <div class="demo-card online">
+        <h3>☁️ Онлайн — GPT-5-nano</h3>
+        <div class="speed">Ответ за 3-5 секунд</div>
+        <div class="code-block" style="font-size:12px;">
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+"llm": "gpt"</div>
+        <div class="tag">Рекомендуется для демо</div>
+      </div>
+      <div class="demo-card offline">
+        <h3>🔒 Оффлайн — DeepSeek R1</h3>
+        <div class="speed">Ответ за 1-3 минуты</div>
+        <div class="code-block" style="font-size:12px;">
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+"llm": "local", "top_k": 1</div>
+        <div class="tag">Proof of concept</div>
+      </div>
+    </div>
+
+    <p style="font-size:14px;color:var(--text-dim);margin-bottom:16px;">Примеры запросов через PowerShell (workflow должен быть Active):</p>
+
+    <div class="code-block" style="margin-bottom:12px;">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+<span class="comment"># Онлайн (GPT) — биология на русском</span>
+<span class="cmd">Invoke-WebRequest</span> -Uri "http://localhost:5678/webhook/edu-rag-query" `
+  -Method POST -ContentType "application/json; charset=utf-8" `
+  -Body ([System.Text.Encoding]::UTF8.GetBytes(
+    '{"question":"Что такое фотосинтез?","llm":"gpt","subject":"biology"}'
+  ))</div>
+
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+<span class="comment"># Оффлайн (Ollama) — на английском</span>
+<span class="cmd">Invoke-WebRequest</span> -Uri "http://localhost:5678/webhook/edu-rag-query" `
+  -Method POST -ContentType "application/json; charset=utf-8" `
+  -Body ([System.Text.Encoding]::UTF8.GetBytes(
+    '{"question":"What is a cell?","llm":"local","subject":"biology","top_k":1}'
+  ))</div>
+
+    <table class="params-table">
+      <thead>
+        <tr><th>Параметр</th><th>Значение</th><th>Описание</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="code-inline">question</code></td><td>любой текст</td><td>Вопрос <strong>(обязательный)</strong></td></tr>
+        <tr><td><code class="code-inline">llm</code></td><td><code class="code-inline">gpt</code> / <code class="code-inline">local</code></td><td>Онлайн или оффлайн</td></tr>
+        <tr><td><code class="code-inline">subject</code></td><td>biology, english…</td><td>Фильтр по предмету</td></tr>
+        <tr><td><code class="code-inline">grade</code></td><td>7 – 12</td><td>Фильтр по классу</td></tr>
+        <tr><td><code class="code-inline">top_k</code></td><td>1 – 3</td><td>Чанков контекста (local ≤ 2)</td></tr>
+      </tbody>
+    </table>
+
+    <div class="tip-box">
+      <h3>💡 Советы для демо</h3>
+      <ul>
+        <li>Для быстрого показа используйте <code class="code-inline">gpt</code> — ответ мгновенный</li>
+        <li>Русский, английский, румынский — язык определяется автоматически</li>
+        <li>Для оффлайн-режима всегда передавайте <code class="code-inline">top_k: 1</code></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ARCHITECTURE -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-number blue" style="background:rgba(167,139,250,0.12);color:var(--purple);border-color:rgba(167,139,250,0.3);">⚙</div>
+      <h2>Архитектура</h2>
+    </div>
+    <div class="arch-flow">
+      <span class="node">Webhook</span> <span class="arrow">→</span>
+      <span class="node">Validation</span> <span class="arrow">→</span>
+      <span class="node">Embed</span> <span class="arrow">→</span>
+      <span class="node">Prepare</span> <span class="arrow">→</span>
+      <span class="node">pgvector</span> <span class="arrow">→</span>
+      <span class="node">Context</span> <span class="arrow">→</span>
+      <span class="node">Switch</span>
+      <br>
+      <span class="arrow">├→</span> <span class="gpt">GPT-5-nano</span> <span class="arrow">→ Format → Response</span><br>
+      <span class="arrow">└→</span> <span class="local">Ollama Local</span> <span class="arrow"> ↗</span>
+    </div>
+  </div>
+
+  <!-- SHUTDOWN -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-number red">3</div>
+      <h2>Завершение работы</h2>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <p>Выполните в PowerShell:</p>
+          <div class="code-block">
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+<span class="cmd">cd</span> C:\edu-rag-portable
+<span class="cmd">docker-compose</span> -f docker-compose-portable.yml down</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="warning-box">
+      <h3>⛔ Не потеряйте данные!</h3>
+      <ul>
+        <li><code class="code-inline">docker-compose down -v</code> — флаг -v удалит ВСЕ данные</li>
+        <li><code class="code-inline">docker rm -f</code> — может пересоздать volumes</li>
+        <li><code class="code-inline">docker volume rm</code> — удалит данные безвозвратно</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="footer">
+    EDU RAG Portable · Intel AI Global Impact Festival 2026 · Nicolae Milescu-Spătaru Lyceum
+  </div>
+
+</div>
+
+<script>
+function copyCode(btn) {
+  const block = btn.parentElement;
+  const text = block.textContent.replace('Copy', '').replace('Copied!', '').trim();
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+  });
+}
+</script>
+</body>
+</html>

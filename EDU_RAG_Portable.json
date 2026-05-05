@@ -1,0 +1,343 @@
+{
+  "name": "EDU_RAG_Portable",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "edu-rag-query",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "55f29fe6-13c5-48f6-b57e-7b168242924f",
+      "name": "1. Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -1408,
+        112
+      ],
+      "webhookId": "f87f0626-6027-4b09-8466-07b58c653892"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst question = body.question;\nif (!question || question.trim() === '') {\n  throw new Error('Pole \"question\" objazatelno');\n}\nreturn [{\n  json: {\n    question: question.trim(),\n    subject: body.subject || null,\n    grade: body.grade || null,\n    top_k: body.top_k || 5,\n    llm: body.llm || 'local'\n  }\n}];"
+      },
+      "id": "3bbe8ce1-6109-4a29-a75d-e1d574bd6781",
+      "name": "2. Validation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1200,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ollama:11434/api/embeddings",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: \"nomic-embed-text:latest\", prompt: $json.question }) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "e7e37f59-f85f-4095-8869-6819a960f2e5",
+      "name": "3. Embed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1008,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const queryData = $('2. Validation').first().json;\nconst embedResponse = $input.first().json;\nlet embedding = embedResponse.embedding;\nif (!embedding) throw new Error('Failed to get embedding');\nconst embeddingStr = '[' + embedding.join(',') + ']';\n\nconst subjectVal = queryData.subject ? \"'\" + queryData.subject.replace(/'/g, \"''\") + \"'\" : 'NULL';\nconst gradeVal = queryData.grade ? String(parseInt(queryData.grade)) : 'NULL';\n\nreturn [{\n  json: {\n    question: queryData.question,\n    subject: queryData.subject,\n    grade: queryData.grade,\n    top_k: queryData.top_k,\n    llm: queryData.llm,\n    query_embedding: embeddingStr,\n    subject_val: subjectVal,\n    grade_val: gradeVal\n  }\n}];"
+      },
+      "id": "ebdb1159-2f1c-4c69-8f05-19f3035cf3d3",
+      "name": "4. Prepare",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -800,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, title, similarity FROM search_chunks(\n  '{{ $json.query_embedding }}',\n  NULL,\n  NULL,\n  2\n)",
+        "options": {}
+      },
+      "id": "83c2400b-82e9-43c7-99f8-49e441a97fd4",
+      "name": "5. Search pgvector",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -592,
+        112
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "l5E1ug4wlfqzYtdw",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const question = $('2. Validation').first().json.question;\nconst llm = $('4. Prepare').first().json.llm;\nconst results = $input.all();\n\nlet lang = 'ro';\nif (/[\\u0400-\\u04FF]/.test(question)) lang = 'ru';\nelse if (/^(what|who|where|when|why|how|is|are|do|does|can|could)/i.test(question)) lang = 'en';\n\nconst langInstructions = {\n  'ru': 'VAZHNO: Otvechaj TOLKO na russkom jazyke!',\n  'en': 'IMPORTANT: Answer ONLY in English!',\n  'ro': 'Raspunde in limba romana.'\n};\n\nlet context = '';\nlet sources = [];\nresults.forEach((item, i) => {\n  const doc = item.json;\n  context += `[Source ${i+1}: ${doc.title || doc.book_id}]\\n${doc.content}\\n\\n`;\n  sources.push({\n    title: doc.title || doc.book_id,\n    subject: doc.subject,\n    similarity: doc.similarity ? Number(doc.similarity).toFixed(2) : 'N/A'\n  });\n});\n\nconst systemPrompt = 'You are an educational assistant EDU RAG. ' + langInstructions[lang] + ' Answer ONLY based on the provided context. Cite sources.';\n\nreturn [{\n  json: { question, context, sources, lang, llm, systemPrompt }\n}];"
+      },
+      "id": "4690a69f-fc48-4334-a300-b08e95e32cf3",
+      "name": "6. Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -400,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "gpt",
+              "leftValue": "={{ $json.llm }}",
+              "rightValue": "gpt",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "f6139343-ebbd-430c-8080-076293dc0e74",
+      "name": "7. Switch LLM",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -208,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: \"gpt-5-nano\", messages: [{ role: \"system\", content: $json.systemPrompt }, { role: \"user\", content: \"Context:\" + \"\\n\" + $json.context + \"\\n\" + \"Question: \" + $json.question }], max_completion_tokens: 4000 }) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "3978d82a-0608-4007-acd7-99d642722efb",
+      "name": "8a. GPT-5-nano",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        0,
+        0
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "kzalwCmul7L5jAw1",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ollama:11434/api/chat",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: \"deepseek-r1:1.5b\", messages: [{ role: \"system\", content: $json.systemPrompt }, { role: \"user\", content: \"Context:\\n\" + $json.context + \"\\n\\nQuestion: \" + $json.question }], stream: false, options: { temperature: 0.3, num_ctx: 2048 } }) }}",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "id": "46e4e1ba-ab87-4511-8c32-1a7fd805c58f",
+      "name": "8b. Ollama Local",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        0,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const contextData = $('6. Context').first().json;\nconst llmResponse = $input.first().json;\n\nlet answer = '';\nlet thinking = '';\nlet llmUsed = contextData.llm;\n\nif (llmResponse.choices && llmResponse.choices[0]) {\n  answer = llmResponse.choices[0].message.content;\n  llmUsed = 'gpt-5-nano';\n} else if (llmResponse.message && llmResponse.message.content) {\n  let fullResponse = llmResponse.message.content;\n  llmUsed = 'deepseek-r1:8b';\n  const thinkMatch = fullResponse.match(/<think>([\\s\\S]*?)<\\/think>/i);\n  if (thinkMatch) {\n    thinking = thinkMatch[1].trim();\n    answer = fullResponse.replace(/<think>[\\s\\S]*?<\\/think>/gi, '').trim();\n  } else {\n    answer = fullResponse;\n  }\n} else {\n  answer = 'Failed to generate answer.';\n}\n\nconst result = {\n  success: true,\n  question: contextData.question,\n  answer: answer,\n  sources: contextData.sources,\n  llm: llmUsed\n};\n\nif (thinking) {\n  result.thinking = thinking;\n}\n\nreturn [{ json: result }];"
+      },
+      "id": "59d6f4c3-2ce1-4d1d-a485-476e0879b468",
+      "name": "9. Format",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "9c7511c8-b9b3-42dc-8897-c67b89c75315",
+      "name": "10. Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        400,
+        112
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "1. Webhook": {
+      "main": [
+        [
+          {
+            "node": "2. Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2. Validation": {
+      "main": [
+        [
+          {
+            "node": "3. Embed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3. Embed": {
+      "main": [
+        [
+          {
+            "node": "4. Prepare",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4. Prepare": {
+      "main": [
+        [
+          {
+            "node": "5. Search pgvector",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5. Search pgvector": {
+      "main": [
+        [
+          {
+            "node": "6. Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "6. Context": {
+      "main": [
+        [
+          {
+            "node": "7. Switch LLM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "7. Switch LLM": {
+      "main": [
+        [
+          {
+            "node": "8a. GPT-5-nano",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "8b. Ollama Local",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "8a. GPT-5-nano": {
+      "main": [
+        [
+          {
+            "node": "9. Format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "8b. Ollama Local": {
+      "main": [
+        [
+          {
+            "node": "9. Format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "9. Format": {
+      "main": [
+        [
+          {
+            "node": "10. Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "13ae71c3-7d8b-486d-8825-e62146fde237",
+  "meta": {
+    "instanceId": "e354b7a7e90c786cce8bf66cd1782f417aaf1b2d503336a3942b0998357a394b"
+  },
+  "id": "vkfFirX2wxsZzC53enHcy",
+  "tags": []
+}

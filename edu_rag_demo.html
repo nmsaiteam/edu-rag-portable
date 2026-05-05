@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EDU RAG — Educational Assistant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            padding: 30px 0;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            font-weight: 800;
+            background: linear-gradient(90deg, #02C39A, #00A896, #028090);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #a0aec0;
+            font-size: 1.1rem;
+        }
+
+        .badge {
+            display: inline-block;
+            background: #028090;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            margin-top: 10px;
+        }
+
+        /* Main Card */
+        .main-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Mode Toggle */
+        .mode-toggle {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+            justify-content: center;
+        }
+
+        .mode-btn {
+            padding: 12px 30px;
+            border: 2px solid #028090;
+            background: transparent;
+            color: #02C39A;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .mode-btn:hover {
+            background: rgba(2, 195, 154, 0.1);
+        }
+
+        .mode-btn.active {
+            background: linear-gradient(90deg, #028090, #00A896);
+            color: white;
+            border-color: transparent;
+        }
+
+        .mode-btn .icon {
+            margin-right: 8px;
+        }
+
+        /* Input Section */
+        .input-section {
+            margin-bottom: 20px;
+        }
+
+        .input-wrapper {
+            display: flex;
+            gap: 10px;
+        }
+
+        .question-input {
+            flex: 1;
+            padding: 18px 25px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+            font-size: 1.1rem;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .question-input:focus {
+            border-color: #02C39A;
+        }
+
+        .question-input::placeholder {
+            color: #64748b;
+        }
+
+        .submit-btn {
+            padding: 18px 35px;
+            background: linear-gradient(90deg, #028090, #00A896);
+            border: none;
+            border-radius: 15px;
+            color: white;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(2, 195, 154, 0.3);
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Voice Buttons */
+        .voice-btn {
+            padding: 18px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            color: #a0aec0;
+            font-size: 1.3rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .voice-btn:hover {
+            border-color: #02C39A;
+            color: #02C39A;
+            background: rgba(2, 195, 154, 0.1);
+        }
+
+        .voice-btn.recording {
+            border-color: #e74c3c;
+            color: #e74c3c;
+            animation: pulse 1s infinite;
+        }
+
+        .voice-btn.speaking {
+            border-color: #4285F4;
+            color: #4285F4;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .voice-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .voice-status {
+            color: #64748b;
+            font-size: 0.9rem;
+            min-width: 200px;
+            text-align: center;
+        }
+
+        .tts-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #a0aec0;
+            font-size: 0.9rem;
+        }
+
+        .tts-toggle input {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        /* Filter Section */
+        .filters {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .filter-group label {
+            color: #a0aec0;
+            font-size: 0.9rem;
+        }
+
+        .filter-select {
+            padding: 8px 15px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+            font-size: 0.9rem;
+            outline: none;
+        }
+
+        .filter-select option {
+            background: #1a1a2e;
+        }
+
+        /* Response Section */
+        .response-section {
+            margin-top: 30px;
+            display: none;
+        }
+
+        .response-section.visible {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .response-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .response-header h3 {
+            color: #02C39A;
+            font-size: 1.2rem;
+        }
+
+        .llm-badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .llm-badge.local {
+            background: #1a1a2e;
+            color: #a0aec0;
+            border: 1px solid #64748b;
+        }
+
+        .llm-badge.gpt {
+            background: linear-gradient(90deg, #4285F4, #34A853);
+            color: white;
+        }
+
+        .answer-box {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 15px;
+            padding: 25px;
+            border-left: 4px solid #02C39A;
+            line-height: 1.8;
+            font-size: 1.05rem;
+        }
+
+        /* Thinking Section */
+        .thinking-section {
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .thinking-section.visible {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .thinking-toggle {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            color: #a0aec0;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+        }
+
+        .thinking-toggle:hover {
+            color: #02C39A;
+        }
+
+        .thinking-toggle .icon {
+            transition: transform 0.3s;
+        }
+
+        .thinking-toggle.expanded .icon {
+            transform: rotate(90deg);
+        }
+
+        .thinking-box {
+            background: rgba(255, 193, 7, 0.05);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            font-size: 0.9rem;
+            color: #a0aec0;
+            line-height: 1.6;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+        }
+
+        .thinking-box.expanded {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .thinking-box pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            margin: 0;
+            font-family: inherit;
+        }
+
+        .thinking-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255, 193, 7, 0.1);
+            color: #ffc107;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            margin-bottom: 15px;
+        }
+
+        /* Sources */
+        .sources-section {
+            margin-top: 25px;
+        }
+
+        .sources-section h4 {
+            color: #a0aec0;
+            font-size: 0.95rem;
+            margin-bottom: 12px;
+        }
+
+        .sources-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .source-tag {
+            background: rgba(2, 128, 144, 0.2);
+            border: 1px solid #028090;
+            padding: 8px 15px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            color: #02C39A;
+        }
+
+        .source-tag .score {
+            color: #64748b;
+            margin-left: 8px;
+        }
+
+        /* Loading */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .loading.visible {
+            display: block;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(2, 195, 154, 0.2);
+            border-top-color: #02C39A;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            color: #a0aec0;
+        }
+
+        /* Example Questions */
+        .examples {
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .examples h4 {
+            color: #64748b;
+            font-size: 0.9rem;
+            margin-bottom: 12px;
+        }
+
+        .example-btns {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .example-btn {
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            color: #a0aec0;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .example-btn:hover {
+            background: rgba(2, 195, 154, 0.1);
+            border-color: #02C39A;
+            color: #02C39A;
+        }
+
+        /* Stats Footer */
+        .stats-footer {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #02C39A;
+        }
+
+        .stat-label {
+            color: #64748b;
+            font-size: 0.85rem;
+            margin-top: 5px;
+        }
+
+        /* Error */
+        .error-box {
+            background: rgba(231, 76, 60, 0.1);
+            border: 1px solid #e74c3c;
+            border-radius: 10px;
+            padding: 15px;
+            color: #e74c3c;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .error-box.visible {
+            display: block;
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .input-wrapper {
+                flex-direction: column;
+            }
+
+            .mode-toggle {
+                flex-direction: column;
+            }
+
+            .stats-footer {
+                flex-wrap: wrap;
+                gap: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🎓 EDU RAG</h1>
+            <p>Intelligent Educational Assistant for Moldovan Schools</p>
+            <span class="badge">Intel AI Global Impact Festival 2025</span>
+        </div>
+
+        <!-- Main Card -->
+        <div class="main-card">
+            <!-- Mode Toggle -->
+            <div class="mode-toggle">
+                <button class="mode-btn active" data-mode="local" onclick="setMode('local')">
+                    <span class="icon">💻</span> OFFLINE (Llama)
+                </button>
+                <button class="mode-btn" data-mode="gpt" onclick="setMode('gpt')">
+                    <span class="icon">☁️</span> ONLINE (GPT-5-nano)
+                </button>
+            </div>
+
+            <!-- Filters -->
+            <div class="filters">
+                <div class="filter-group">
+                    <label>Subject:</label>
+                    <select class="filter-select" id="subject">
+                        <option value="">All subjects</option>
+                        <option value="romanian">Romanian</option>
+                        <option value="english">English</option>
+                        <option value="biology">Biology</option>
+                        <option value="history">History</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Grade:</label>
+                    <select class="filter-select" id="grade">
+                        <option value="">All grades</option>
+                        <option value="6">6</option>
+                        <option value="7">7</option>
+                        <option value="8">8</option>
+                        <option value="9">9</option>
+                        <option value="10">10</option>
+                        <option value="11">11</option>
+                        <option value="12">12</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Input -->
+            <div class="input-section">
+                <div class="input-wrapper">
+                    <input type="text" class="question-input" id="question" 
+                           placeholder="Întreabă ceva... / Спроси что-нибудь... / Ask something..."
+                           onkeypress="if(event.key==='Enter') askQuestion()">
+                    <button class="submit-btn" id="submitBtn" onclick="askQuestion()">
+                        Ask →
+                    </button>
+                </div>
+                
+                <!-- Voice Controls -->
+                <div class="voice-controls">
+                    <button class="voice-btn" id="micBtn" onclick="toggleRecording()" title="Voice Input (Click or hold Space)">
+                        🎤
+                    </button>
+                    <span class="voice-status" id="voiceStatus">Click 🎤 or hold Space to speak</span>
+                    <button class="voice-btn" id="speakBtn" onclick="speakAnswer()" title="Read Answer">
+                        🔊
+                    </button>
+                    <label class="tts-toggle">
+                        <input type="checkbox" id="autoSpeak" checked>
+                        Auto-read
+                    </label>
+                </div>
+            </div>
+
+            <!-- Example Questions -->
+            <div class="examples">
+                <h4>Try these examples:</h4>
+                <div class="example-btns">
+                    <button class="example-btn" onclick="setQuestion('Ce este metafora?')">Ce este metafora?</button>
+                    <button class="example-btn" onclick="setQuestion('Что такое фотосинтез?')">Что такое фотосинтез?</button>
+                    <button class="example-btn" onclick="setQuestion('What is a cell?')">What is a cell?</button>
+                    <button class="example-btn" onclick="setQuestion('Cine a fost Ștefan cel Mare?')">Ștefan cel Mare</button>
+                </div>
+            </div>
+
+            <!-- Loading -->
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p class="loading-text" id="loadingText">Processing your question...</p>
+            </div>
+
+            <!-- Error -->
+            <div class="error-box" id="errorBox"></div>
+
+            <!-- Response -->
+            <div class="response-section" id="response">
+                <div class="response-header">
+                    <h3>📚 Answer</h3>
+                    <span class="llm-badge" id="llmBadge">local</span>
+                </div>
+
+                <!-- Thinking Section (DeepSeek-R1) -->
+                <div class="thinking-section" id="thinkingSection">
+                    <span class="thinking-label">🧠 AI Reasoning Process</span>
+                    <div class="thinking-toggle" id="thinkingToggle" onclick="toggleThinking()">
+                        <span class="icon">▶</span>
+                        <span>Show how AI thinks...</span>
+                    </div>
+                    <div class="thinking-box" id="thinkingBox">
+                        <pre id="thinkingText"></pre>
+                    </div>
+                </div>
+
+                <div class="answer-box" id="answerText"></div>
+                
+                <div class="sources-section">
+                    <h4>📖 Sources used:</h4>
+                    <div class="sources-list" id="sourcesList"></div>
+                </div>
+            </div>
+
+            <!-- Stats -->
+            <div class="stats-footer">
+                <div class="stat-item">
+                    <div class="stat-value">27</div>
+                    <div class="stat-label">Textbooks</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">11,520</div>
+                    <div class="stat-label">Indexed Chunks</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">4</div>
+                    <div class="stat-label">Subjects</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">3</div>
+                    <div class="stat-label">Languages</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const API_URL = 'http://localhost:5678/webhook/edu-rag-query';
+        let currentMode = 'local';
+
+        // Speech Recognition Setup
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition = null;
+        let isRecording = false;
+
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = true;
+            recognition.maxAlternatives = 1;
+
+            recognition.onstart = () => {
+                isRecording = true;
+                document.getElementById('micBtn').classList.add('recording');
+                document.getElementById('voiceStatus').textContent = '🔴 Listening...';
+            };
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                document.getElementById('question').value = transcript;
+                
+                if (event.results[0].isFinal) {
+                    document.getElementById('voiceStatus').textContent = '✓ Got it!';
+                    setTimeout(() => askQuestion(), 500);
+                }
+            };
+
+            recognition.onerror = (event) => {
+                console.error('Speech error:', event.error);
+                document.getElementById('voiceStatus').textContent = 'Error: ' + event.error;
+                stopRecording();
+            };
+
+            recognition.onend = () => {
+                stopRecording();
+            };
+        }
+
+        function toggleRecording() {
+            if (!recognition) {
+                alert('Speech recognition not supported in this browser. Use Chrome or Edge.');
+                return;
+            }
+
+            if (isRecording) {
+                recognition.stop();
+            } else {
+                // Detect language based on mode or let browser decide
+                recognition.lang = ''; // Auto-detect
+                recognition.start();
+            }
+        }
+
+        function stopRecording() {
+            isRecording = false;
+            document.getElementById('micBtn').classList.remove('recording');
+            if (document.getElementById('voiceStatus').textContent === '🔴 Listening...') {
+                document.getElementById('voiceStatus').textContent = 'Click 🎤 or hold Space to speak';
+            }
+        }
+
+        // Keyboard shortcut: Hold Space to record
+        let spaceHeld = false;
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && !spaceHeld && document.activeElement.tagName !== 'INPUT') {
+                e.preventDefault();
+                spaceHeld = true;
+                if (!isRecording && recognition) {
+                    recognition.start();
+                }
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.code === 'Space' && spaceHeld) {
+                spaceHeld = false;
+                if (isRecording && recognition) {
+                    recognition.stop();
+                }
+            }
+        });
+
+        // Text-to-Speech
+        let currentUtterance = null;
+
+        function toggleThinking() {
+            const toggle = document.getElementById('thinkingToggle');
+            const box = document.getElementById('thinkingBox');
+            toggle.classList.toggle('expanded');
+            box.classList.toggle('expanded');
+            
+            const span = toggle.querySelector('span:last-child');
+            if (box.classList.contains('expanded')) {
+                span.textContent = 'Hide reasoning process';
+            } else {
+                span.textContent = 'Show how AI thinks...';
+            }
+        }
+
+        function speakAnswer() {
+            const answerText = document.getElementById('answerText').textContent;
+            if (!answerText) return;
+
+            // Stop if already speaking
+            if (window.speechSynthesis.speaking) {
+                window.speechSynthesis.cancel();
+                document.getElementById('speakBtn').classList.remove('speaking');
+                return;
+            }
+
+            const utterance = new SpeechSynthesisUtterance(answerText);
+            
+            // Detect language
+            if (/[а-яА-ЯёЁ]/.test(answerText)) {
+                utterance.lang = 'ru-RU';
+            } else if (/[ăîâșț]/i.test(answerText)) {
+                utterance.lang = 'ro-RO';
+            } else {
+                utterance.lang = 'en-US';
+            }
+
+            utterance.rate = 0.9;
+            utterance.pitch = 1;
+
+            utterance.onstart = () => {
+                document.getElementById('speakBtn').classList.add('speaking');
+                document.getElementById('voiceStatus').textContent = '🔊 Speaking...';
+            };
+
+            utterance.onend = () => {
+                document.getElementById('speakBtn').classList.remove('speaking');
+                document.getElementById('voiceStatus').textContent = 'Click 🎤 or hold Space to speak';
+            };
+
+            utterance.onerror = () => {
+                document.getElementById('speakBtn').classList.remove('speaking');
+            };
+
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function setMode(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.mode-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.mode === mode);
+            });
+        }
+
+        function setQuestion(text) {
+            document.getElementById('question').value = text;
+            document.getElementById('question').focus();
+        }
+
+        async function askQuestion() {
+            const question = document.getElementById('question').value.trim();
+            if (!question) return;
+
+            const subject = document.getElementById('subject').value;
+            const grade = document.getElementById('grade').value;
+
+            // Build request body
+            const body = { question };
+            if (currentMode === 'gpt') body.llm = 'gpt';
+            if (subject) body.subject = subject;
+            if (grade) body.grade = parseInt(grade);
+
+            // Show loading
+            document.getElementById('loading').classList.add('visible');
+            document.getElementById('response').classList.remove('visible');
+            document.getElementById('errorBox').classList.remove('visible');
+            document.getElementById('submitBtn').disabled = true;
+
+            const loadingText = document.getElementById('loadingText');
+            loadingText.textContent = currentMode === 'gpt' 
+                ? 'Connecting to GPT-5-nano...' 
+                : 'Processing with local Llama model...';
+
+            try {
+                const startTime = Date.now();
+                
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                const data = await response.json();
+                const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+
+                // Hide loading
+                document.getElementById('loading').classList.remove('visible');
+
+                // Show response
+                document.getElementById('answerText').textContent = data.answer;
+                
+                // LLM badge
+                const badge = document.getElementById('llmBadge');
+                badge.textContent = `${data.llm || currentMode} • ${elapsed}s`;
+                badge.className = 'llm-badge ' + (data.llm?.includes('gpt') ? 'gpt' : 'local');
+
+                // Sources
+                const sourcesList = document.getElementById('sourcesList');
+                sourcesList.innerHTML = '';
+                if (data.sources && data.sources.length > 0) {
+                    data.sources.forEach(src => {
+                        const tag = document.createElement('span');
+                        tag.className = 'source-tag';
+                        tag.innerHTML = `${src.title || src.book_id} <span class="score">${src.score || src.similarity || ''}</span>`;
+                        sourcesList.appendChild(tag);
+                    });
+                }
+
+                document.getElementById('response').classList.add('visible');
+
+                // Show thinking section if available (DeepSeek-R1)
+                const thinkingSection = document.getElementById('thinkingSection');
+                const thinkingText = document.getElementById('thinkingText');
+                const thinkingToggle = document.getElementById('thinkingToggle');
+                const thinkingBox = document.getElementById('thinkingBox');
+                
+                if (data.thinking) {
+                    thinkingText.textContent = data.thinking;
+                    thinkingSection.classList.add('visible');
+                    // Reset toggle state
+                    thinkingToggle.classList.remove('expanded');
+                    thinkingBox.classList.remove('expanded');
+                    thinkingToggle.querySelector('span:last-child').textContent = 'Show how AI thinks...';
+                } else {
+                    thinkingSection.classList.remove('visible');
+                }
+
+                // Auto-speak if enabled
+                if (document.getElementById('autoSpeak').checked) {
+                    setTimeout(() => speakAnswer(), 300);
+                }
+
+            } catch (error) {
+                document.getElementById('loading').classList.remove('visible');
+                const errorBox = document.getElementById('errorBox');
+                errorBox.textContent = `Error: ${error.message}. Make sure n8n is running on localhost:5678`;
+                errorBox.classList.add('visible');
+            }
+
+            document.getElementById('submitBtn').disabled = false;
+        }
+    </script>
+</body>
+</html>

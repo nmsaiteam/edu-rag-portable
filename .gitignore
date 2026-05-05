@@ -1,0 +1,51 @@
+# ===== Secrets / local config =====
+.env
+.env.local
+*.env
+!.env.example
+
+# ===== Large data / DB dumps (>100 MB GitHub limit) =====
+ragdb_backup.sql
+*.dump
+*.bak
+
+# ===== n8n local state =====
+n8n_data/
+.n8n/
+
+# ===== Docker volumes =====
+pgdata/
+ollama_data/
+
+# ===== Logs =====
+*.log
+logs/
+
+# ===== OS junk =====
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+$RECYCLE.BIN/
+
+# ===== Editors / IDEs =====
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ===== Python (in case of helper scripts later) =====
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# ===== Node (in case of helper scripts later) =====
+node_modules/
+npm-debug.log*
+
+# ===== Claude / AI assistants =====
+.claude/
+.aider*
