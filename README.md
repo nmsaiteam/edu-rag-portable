@@ -275,7 +275,7 @@ docker compose -f docker-compose-portable.yml down -v     # also wipe volumes (D
 
 ## License
 
-TBD — please add a `LICENSE` file before distributing.
+[MIT License](./LICENSE) — © 2026 nmsaiteam.
 
 ---
 
