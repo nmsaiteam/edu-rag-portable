@@ -120,15 +120,51 @@ The first run downloads ~5.5 GB of model weights — expect 10–15 minutes on a
 
 ### 4. Database
 
-The corpus (~11 520 chunks of school textbooks) is too large for git. To restore it:
+The corpus (~11 520 pre-embedded chunks of school textbooks) is **221 MB** — too large for GitHub's per-file limit, so it is hosted on Google Drive.
+
+**Download:** <https://drive.google.com/file/d/1uv4WI7K5nWnMUJ9GlWGcsAk8L2sBW-fl/view?usp=sharing>
+
+| Property | Value |
+|---|---|
+| Filename | `ragdb_backup.sql` |
+| Size | 232 215 440 bytes (≈ 221 MB) |
+| SHA-256 | `98c4ad56179f1f48d8c6f7c5efc013d069ad87f05312d0fac7fb69de552311d2` |
+
+#### Option A — browser
+
+Open the link above, click **Download**, save the file as `ragdb_backup.sql` in the project root.
+
+#### Option B — command line
+
+The simplest cross-platform tool for Drive files >100 MB is `gdown` (handles the virus-scan confirmation token automatically):
+
+```bash
+pip install gdown
+gdown 1uv4WI7K5nWnMUJ9GlWGcsAk8L2sBW-fl -O ragdb_backup.sql
+```
+
+#### Verify integrity
+
+**Linux / macOS:**
+```bash
+sha256sum ragdb_backup.sql
+# Expected: 98c4ad56179f1f48d8c6f7c5efc013d069ad87f05312d0fac7fb69de552311d2
+```
+
+**Windows / PowerShell:**
+```powershell
+(Get-FileHash ragdb_backup.sql -Algorithm SHA256).Hash.ToLower()
+# Expected: 98c4ad56179f1f48d8c6f7c5efc013d069ad87f05312d0fac7fb69de552311d2
+```
+
+#### Restore into Postgres
 
 ```bash
 docker exec -i pg-rag psql -U rag -d ragdb < ragdb_backup.sql
 ```
 
-> The backup file is distributed separately. Contact the maintainer or rebuild the index from your own corpus using the embedding pipeline (`nomic-embed-text` via Ollama).
-
 Then create the search function:
+
 ```bash
 docker exec -i pg-rag psql -U rag -d ragdb < setup_search_function.sql
 ```
