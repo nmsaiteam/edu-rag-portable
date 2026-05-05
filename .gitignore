@@ -48,4 +48,6 @@ npm-debug.log*
 
 # ===== Claude / AI assistants =====
 .claude/
+CLAUDE.md
+claude.md
 .aider*
